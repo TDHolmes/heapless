@@ -223,14 +223,16 @@ where
     }
 
     unsafe fn get_mut_unchecked(this: &mut Self) -> &mut P::Data {
-        &mut (*this.ptr.as_ref().data.get()).data
+        unsafe { &mut (*this.ptr.as_ref().data.get()).data }
         // &mut (*this.ptr.as_ptr()).data
     }
 
     #[inline(never)]
     unsafe fn drop_slow(&mut self) {
         // run `P::Data`'s destructor
-        ptr::drop_in_place(Self::get_mut_unchecked(self));
+        unsafe {
+            ptr::drop_in_place(Self::get_mut_unchecked(self));
+        }
 
         // XXX memory pool instead of `#[global_allocator]`
         // return memory to pool

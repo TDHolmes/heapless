@@ -73,6 +73,7 @@
 #![deny(rust_2018_idioms)]
 #![deny(warnings)]
 #![deny(const_err)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 pub use binary_heap::BinaryHeap;
 pub use deque::Deque;

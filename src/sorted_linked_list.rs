@@ -103,7 +103,7 @@ macro_rules! impl_index_and_const_new {
         impl SortedLinkedListIndex for $name {
             #[inline(always)]
             unsafe fn new_unchecked(val: usize) -> Self {
-                Self::new_unchecked(val as $ty)
+                unsafe { Self::new_unchecked(val as $ty) }
             }
 
             /// This is only valid if `self.option()` is not `None`.
@@ -245,7 +245,7 @@ where
     ///
     /// Assumes that the list is not full.
     pub unsafe fn push_unchecked(&mut self, value: T) {
-        let new = self.free.get_unchecked();
+        let new = unsafe { self.free.get_unchecked() };
 
         // Store the data and update the next free spot
         self.write_data_in_node_at(new, value);
@@ -259,7 +259,7 @@ where
                 != K::ordering()
             {
                 self.node_at_mut(new).next = self.head;
-                self.head = Idx::new_unchecked(new);
+                self.head = unsafe { Idx::new_unchecked(new) };
             } else {
                 // It's not head, search the list for the correct placement
                 let mut current = head;
@@ -277,11 +277,11 @@ where
                 }
 
                 self.node_at_mut(new).next = self.node_at(current).next;
-                self.node_at_mut(current).next = Idx::new_unchecked(new);
+                self.node_at_mut(current).next = unsafe { Idx::new_unchecked(new) };
             }
         } else {
             self.node_at_mut(new).next = self.head;
-            self.head = Idx::new_unchecked(new);
+            self.head = unsafe { Idx::new_unchecked(new) };
         }
     }
 
@@ -436,11 +436,11 @@ where
     ///
     /// Assumes that the list is not empty.
     pub unsafe fn pop_unchecked(&mut self) -> T {
-        let head = self.head.get_unchecked();
+        let head = unsafe { self.head.get_unchecked() };
         let current = head;
         self.head = self.node_at(head).next;
         self.node_at_mut(current).next = self.free;
-        self.free = Idx::new_unchecked(current);
+        self.free = unsafe { Idx::new_unchecked(current) };
 
         self.extract_data_in_node_at(current)
     }

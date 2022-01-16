@@ -211,8 +211,8 @@ unsafe fn dequeue<T>(
 
     let mut cell;
     loop {
-        cell = buffer.add(usize::from(pos & mask));
-        let seq = (*cell).sequence.load(Ordering::Acquire);
+        cell = unsafe { buffer.add(usize::from(pos & mask)) };
+        let seq = unsafe { (*cell).sequence.load(Ordering::Acquire) };
         let dif = (seq as i8).wrapping_sub((pos.wrapping_add(1)) as i8);
 
         if dif == 0 {
@@ -234,10 +234,12 @@ unsafe fn dequeue<T>(
         }
     }
 
-    let data = (*cell).data.as_ptr().read();
-    (*cell)
-        .sequence
-        .store(pos.wrapping_add(mask).wrapping_add(1), Ordering::Release);
+    let data = unsafe { (*cell).data.as_ptr().read() };
+    unsafe {
+        (*cell)
+            .sequence
+            .store(pos.wrapping_add(mask).wrapping_add(1), Ordering::Release);
+    }
     Some(data)
 }
 
@@ -251,8 +253,8 @@ unsafe fn enqueue<T>(
 
     let mut cell;
     loop {
-        cell = buffer.add(usize::from(pos & mask));
-        let seq = (*cell).sequence.load(Ordering::Acquire);
+        cell = unsafe { buffer.add(usize::from(pos & mask)) };
+        let seq = unsafe { (*cell).sequence.load(Ordering::Acquire) };
         let dif = (seq as i8).wrapping_sub(pos as i8);
 
         if dif == 0 {
@@ -274,10 +276,12 @@ unsafe fn enqueue<T>(
         }
     }
 
-    (*cell).data.as_mut_ptr().write(item);
-    (*cell)
-        .sequence
-        .store(pos.wrapping_add(1), Ordering::Release);
+    unsafe {
+        (*cell).data.as_mut_ptr().write(item);
+        (*cell)
+            .sequence
+            .store(pos.wrapping_add(1), Ordering::Release);
+    }
     Ok(())
 }
 

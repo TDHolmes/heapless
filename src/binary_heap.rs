@@ -298,10 +298,12 @@ where
     /// Removes the *top* (greatest if max-heap, smallest if min-heap) item from the binary heap and
     /// returns it, without checking if the binary heap is empty.
     pub unsafe fn pop_unchecked(&mut self) -> T {
-        let mut item = self.data.pop_unchecked();
+        let mut item = unsafe { self.data.pop_unchecked() };
 
         if !self.is_empty() {
-            mem::swap(&mut item, self.data.as_mut_slice().get_unchecked_mut(0));
+            mem::swap(&mut item, unsafe {
+                self.data.as_mut_slice().get_unchecked_mut(0)
+            });
             self.sift_down_to_bottom(0);
         }
         item
@@ -332,7 +334,9 @@ where
     /// Pushes an item onto the binary heap without first checking if it's full.
     pub unsafe fn push_unchecked(&mut self, item: T) {
         let old_len = self.len();
-        self.data.push_unchecked(item);
+        unsafe {
+            self.data.push_unchecked(item);
+        }
         self.sift_up(0, old_len);
     }
 
@@ -392,7 +396,7 @@ impl<'a, T> Hole<'a, T> {
     #[inline]
     unsafe fn new(data: &'a mut [T], pos: usize) -> Self {
         debug_assert!(pos < data.len());
-        let elt = ptr::read(data.get_unchecked(pos));
+        let elt = unsafe { ptr::read(data.get_unchecked(pos)) };
         Hole {
             data,
             elt: ManuallyDrop::new(elt),
@@ -418,7 +422,7 @@ impl<'a, T> Hole<'a, T> {
     unsafe fn get(&self, index: usize) -> &T {
         debug_assert!(index != self.pos);
         debug_assert!(index < self.data.len());
-        self.data.get_unchecked(index)
+        unsafe { self.data.get_unchecked(index) }
     }
 
     /// Move hole to new location
@@ -428,9 +432,11 @@ impl<'a, T> Hole<'a, T> {
     unsafe fn move_to(&mut self, index: usize) {
         debug_assert!(index != self.pos);
         debug_assert!(index < self.data.len());
-        let index_ptr: *const _ = self.data.get_unchecked(index);
-        let hole_ptr = self.data.get_unchecked_mut(self.pos);
-        ptr::copy_nonoverlapping(index_ptr, hole_ptr, 1);
+        let index_ptr: *const _ = unsafe { self.data.get_unchecked(index) };
+        let hole_ptr = unsafe { self.data.get_unchecked_mut(self.pos) };
+        unsafe {
+            ptr::copy_nonoverlapping(index_ptr, hole_ptr, 1);
+        }
         self.pos = index;
     }
 }

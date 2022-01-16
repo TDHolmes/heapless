@@ -218,7 +218,12 @@ impl<T, const N: usize> Queue<T, N> {
         let next_tail = Self::increment(current_tail);
 
         if next_tail != self.head.load(Ordering::Acquire) {
-            (self.buffer.get_unchecked(current_tail).get()).write(MaybeUninit::new(val));
+            unsafe {
+                self.buffer
+                    .get_unchecked(current_tail)
+                    .get()
+                    .write(MaybeUninit::new(val));
+            }
             self.tail.store(next_tail, Ordering::Release);
 
             Ok(())
@@ -233,7 +238,12 @@ impl<T, const N: usize> Queue<T, N> {
     unsafe fn inner_enqueue_unchecked(&self, val: T) {
         let current_tail = self.tail.load(Ordering::Relaxed);
 
-        (self.buffer.get_unchecked(current_tail).get()).write(MaybeUninit::new(val));
+        unsafe {
+            self.buffer
+                .get_unchecked(current_tail)
+                .get()
+                .write(MaybeUninit::new(val));
+        }
         self.tail
             .store(Self::increment(current_tail), Ordering::Release);
     }
@@ -247,7 +257,7 @@ impl<T, const N: usize> Queue<T, N> {
     /// to create a copy of `item`, which could result in `T`'s destructor running on `item`
     /// twice.
     pub unsafe fn enqueue_unchecked(&mut self, val: T) {
-        self.inner_enqueue_unchecked(val)
+        unsafe { self.inner_enqueue_unchecked(val) }
     }
 
     // The memory for dequeuing is "owned" by the head pointer,.
@@ -259,7 +269,7 @@ impl<T, const N: usize> Queue<T, N> {
         if current_head == self.tail.load(Ordering::Acquire) {
             None
         } else {
-            let v = (self.buffer.get_unchecked(current_head).get() as *const T).read();
+            let v = unsafe { (self.buffer.get_unchecked(current_head).get() as *const T).read() };
 
             self.head
                 .store(Self::increment(current_head), Ordering::Release);
@@ -273,7 +283,7 @@ impl<T, const N: usize> Queue<T, N> {
     // items without doing pointer arithmetic and accessing internal fields of this type.
     unsafe fn inner_dequeue_unchecked(&self) -> T {
         let current_head = self.head.load(Ordering::Relaxed);
-        let v = (self.buffer.get_unchecked(current_head).get() as *const T).read();
+        let v = unsafe { (self.buffer.get_unchecked(current_head).get() as *const T).read() };
 
         self.head
             .store(Self::increment(current_head), Ordering::Release);
@@ -288,7 +298,7 @@ impl<T, const N: usize> Queue<T, N> {
     ///
     /// If the queue is empty this operation will return uninitialized memory.
     pub unsafe fn dequeue_unchecked(&mut self) -> T {
-        self.inner_dequeue_unchecked()
+        unsafe { self.inner_dequeue_unchecked() }
     }
 
     /// Splits a queue into producer and consumer endpoints
@@ -511,7 +521,7 @@ impl<'a, T, const N: usize> Consumer<'a, T, N> {
     /// See [`Queue::dequeue_unchecked`] for safety
     #[inline]
     pub unsafe fn dequeue_unchecked(&mut self) -> T {
-        self.rb.inner_dequeue_unchecked()
+        unsafe { self.rb.inner_dequeue_unchecked() }
     }
 
     /// Returns if there are any items to dequeue. When this returns `true`, at least the
@@ -566,7 +576,7 @@ impl<'a, T, const N: usize> Producer<'a, T, N> {
     /// See [`Queue::enqueue_unchecked`] for safety
     #[inline]
     pub unsafe fn enqueue_unchecked(&mut self, val: T) {
-        self.rb.inner_enqueue_unchecked(val)
+        unsafe { self.rb.inner_enqueue_unchecked(val) }
     }
 
     /// Returns if there is any space to enqueue a new item. When this returns true, at

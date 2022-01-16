@@ -126,8 +126,11 @@ impl<T, const N: usize> Deque<T, N> {
     unsafe fn drop_contents(&mut self) {
         // We drop each element used in the deque by turning into a &mut[T]
         let (a, b) = self.as_mut_slices();
-        ptr::drop_in_place(a);
-        ptr::drop_in_place(b);
+
+        unsafe {
+            ptr::drop_in_place(a);
+            ptr::drop_in_place(b);
+        }
     }
 
     /// Returns whether the deque is empty.
@@ -282,7 +285,7 @@ impl<T, const N: usize> Deque<T, N> {
         let index = self.front;
         self.full = false;
         self.front = Self::increment(self.front);
-        (self.buffer.get_unchecked_mut(index).as_ptr() as *const T).read()
+        unsafe { (self.buffer.get_unchecked_mut(index).as_ptr() as *const T).read() }
     }
 
     /// Removes an item from the back of the deque and returns it
@@ -295,7 +298,7 @@ impl<T, const N: usize> Deque<T, N> {
 
         self.full = false;
         self.back = Self::decrement(self.back);
-        (self.buffer.get_unchecked_mut(self.back).as_ptr() as *const T).read()
+        unsafe { (self.buffer.get_unchecked_mut(self.back).as_ptr() as *const T).read() }
     }
 
     /// Appends an `item` to the front of the deque
@@ -309,7 +312,9 @@ impl<T, const N: usize> Deque<T, N> {
         let index = Self::decrement(self.front);
         // NOTE: the memory slot that we are about to write to is uninitialized. We assign
         // a `MaybeUninit` to avoid running `T`'s destructor on the uninitialized memory
-        *self.buffer.get_unchecked_mut(index) = MaybeUninit::new(item);
+        unsafe {
+            *self.buffer.get_unchecked_mut(index) = MaybeUninit::new(item);
+        }
         self.front = index;
         if self.front == self.back {
             self.full = true;
@@ -326,7 +331,9 @@ impl<T, const N: usize> Deque<T, N> {
 
         // NOTE: the memory slot that we are about to write to is uninitialized. We assign
         // a `MaybeUninit` to avoid running `T`'s destructor on the uninitialized memory
-        *self.buffer.get_unchecked_mut(self.back) = MaybeUninit::new(item);
+        unsafe {
+            *self.buffer.get_unchecked_mut(self.back) = MaybeUninit::new(item);
+        }
         self.back = Self::increment(self.back);
         if self.front == self.back {
             self.full = true;
